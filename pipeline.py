@@ -55,6 +55,7 @@ from database.db import (
     insert_odds,
     insert_prediction,
     get_upcoming_predictions,
+    get_fights_for_event,
     get_model_accuracy,
     upsert_tapology_data,
     get_all_fighter_names,
@@ -256,7 +257,7 @@ def run_predict(event_id: str):
     predictor = UFCPredictor()
     predictor.load()
 
-    preds = get_upcoming_predictions(event_id)
+    preds = get_fights_for_event(event_id)
     if not preds:
         log.warning("No fights found for event %s — did scrape-upcoming run?", event_id)
         return

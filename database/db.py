@@ -9,8 +9,22 @@ import logging
 import psycopg2
 import psycopg2.extras
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
 from typing import Optional
+
+
+class _JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        if isinstance(o, (datetime, date)):
+            return o.isoformat()
+        return super().default(o)
+
+
+def _json_dumps(obj):
+    return json.dumps(obj, cls=_JSONEncoder)
 
 log = logging.getLogger(__name__)
 
@@ -374,15 +388,52 @@ def insert_prediction(pred: dict):
     """
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, {**pred, "raw_features": json.dumps(pred.get("raw_features", {}))})
+            cur.execute(sql, {**pred, "raw_features": _json_dumps(pred.get("raw_features", {}))})
 
 
 # ──────────────────────────────────────────────
 # Read helpers (for the dashboard API)
 # ──────────────────────────────────────────────
 
+def get_fights_for_event(event_id: str) -> list[dict]:
+    """Return all fights for an event joined with fighter stats — used as model input."""
+    sql = """
+        SELECT
+            fi.id AS fight_id, fi.event_id,
+            fi.fighter1_id, fi.fighter2_id,
+            fi.weight_class, fi.is_title_fight, fi.is_main_event,
+            f1.name  AS f1_name,  f1.slpm AS f1_slpm, f1.str_acc AS f1_str_acc,
+            f1.sapm  AS f1_sapm,  f1.str_def AS f1_str_def,
+            f1.td_avg AS f1_td_avg, f1.td_acc AS f1_td_acc,
+            f1.td_def AS f1_td_def, f1.sub_avg AS f1_sub_avg,
+            f1.wins_by_ko AS f1_ko, f1.wins_by_sub AS f1_sub,
+            f1.wins AS f1_wins, f1.losses AS f1_losses,
+            f2.name  AS f2_name,  f2.slpm AS f2_slpm, f2.str_acc AS f2_str_acc,
+            f2.sapm  AS f2_sapm,  f2.str_def AS f2_str_def,
+            f2.td_avg AS f2_td_avg, f2.td_acc AS f2_td_acc,
+            f2.td_def AS f2_td_def, f2.sub_avg AS f2_sub_avg,
+            f2.wins_by_ko AS f2_ko, f2.wins_by_sub AS f2_sub,
+            f2.wins AS f2_wins, f2.losses AS f2_losses,
+            o.consensus_f1_decimal, o.consensus_f2_decimal,
+            o.best_f1_decimal, o.best_f2_decimal,
+            o.bookmakers
+        FROM fights fi
+        JOIN fighters f1 ON f1.id = fi.fighter1_id
+        JOIN fighters f2 ON f2.id = fi.fighter2_id
+        LEFT JOIN LATERAL (
+            SELECT * FROM odds WHERE fight_id = fi.id ORDER BY scraped_at DESC LIMIT 1
+        ) o ON TRUE
+        WHERE fi.event_id = %(event_id)s
+        ORDER BY fi.is_main_event DESC, fi.is_title_fight DESC
+    """
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, {"event_id": event_id})
+            return [dict(r) for r in cur.fetchall()]
+
+
 def get_upcoming_predictions(event_id: str) -> list[dict]:
-    """Return all predictions for a given event, joined with fighter data."""
+    """Return existing predictions for a given event (used post-predict for display)."""
     sql = """
         SELECT
             p.*,
