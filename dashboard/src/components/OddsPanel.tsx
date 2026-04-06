@@ -61,9 +61,12 @@ interface Props {
 }
 
 export default function OddsPanel({ odds, f1Name, f2Name, f1Prob, f2Prob }: Props) {
-  const bookmakers: BookmakerLine[] = Array.isArray(odds.bookmakers)
+  const rawBookmakers = Array.isArray(odds.bookmakers)
     ? odds.bookmakers
-    : [];
+    : (typeof odds.bookmakers === "string" ? JSON.parse(odds.bookmakers) : []);
+  const bookmakers: BookmakerLine[] = (rawBookmakers as BookmakerLine[]).filter(
+    (bk) => bk && typeof bk.bookmaker === "string"
+  );
 
   // Sort: priority books first, then alphabetical
   const sorted = [...bookmakers].sort((a, b) => {
