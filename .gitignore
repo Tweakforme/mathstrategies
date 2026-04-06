@@ -14,6 +14,9 @@ dashboard/.next/
 dashboard/.env.local
 dashboard/out/
 
+# Next.js build traces (root level)
+.next/
+
 # OS
 .DS_Store
 Thumbs.db
