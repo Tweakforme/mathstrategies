@@ -153,8 +153,8 @@ export async function getFightCard(eventId: string): Promise<FightCard[]> {
         p.f1_win_prob, p.f2_win_prob, p.confidence,
         p.is_value_bet, p.value_fighter, p.value_edge, p.kelly_pct,
 
-        o.consensus_f1_decimal, o.consensus_f2_decimal,
-        o.best_f1_decimal, o.best_f2_decimal
+        o.consensus_f1_decimal::float, o.consensus_f2_decimal::float,
+        o.best_f1_decimal::float, o.best_f2_decimal::float
 
      FROM fights f
      LEFT JOIN fighters fi1 ON fi1.id = f.fighter1_id
@@ -167,8 +167,8 @@ export async function getFightCard(eventId: string): Promise<FightCard[]> {
          ORDER BY created_at DESC LIMIT 1
      ) p ON TRUE
      LEFT JOIN LATERAL (
-         SELECT consensus_f1_decimal, consensus_f2_decimal,
-                best_f1_decimal, best_f2_decimal
+         SELECT consensus_f1_decimal::float, consensus_f2_decimal::float,
+                best_f1_decimal::float, best_f2_decimal::float
          FROM odds
          WHERE fight_id = f.id
          ORDER BY scraped_at DESC LIMIT 1
