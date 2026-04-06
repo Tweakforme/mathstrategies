@@ -4,6 +4,8 @@ import { getFightDetail, getOddsForFight } from "@/lib/queries";
 import StatsComparison from "@/components/StatsComparison";
 import OddsPanel from "@/components/OddsPanel";
 import PickButtons from "@/components/PickButtons";
+import ModelExplanation from "@/components/ModelExplanation";
+import BettingAngles from "@/components/BettingAngles";
 import { Shield, Star, AlertTriangle, Zap } from "lucide-react";
 import clsx from "clsx";
 
@@ -207,6 +209,30 @@ export default async function FightPage({
           f1={f1 as Record<string, number>}
           f2={f2 as Record<string, number>}
         />
+      )}
+
+      {/* Model explanation + betting angles */}
+      {hasPred && f1 && f2 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ModelExplanation
+            f1Name={fight.fighter1_name as string}
+            f2Name={fight.fighter2_name as string}
+            f1={f1 as any}
+            f2={f2 as any}
+            f1Prob={f1Prob}
+            f2Prob={f2Prob}
+          />
+          <BettingAngles
+            f1Name={fight.fighter1_name as string}
+            f2Name={fight.fighter2_name as string}
+            f1={f1 as any}
+            f2={f2 as any}
+            f1Prob={f1Prob}
+            f2Prob={f2Prob}
+            weightClass={fight.weight_class as string}
+            isTitleFight={fight.is_title_fight as boolean}
+          />
+        </div>
       )}
 
       {/* Odds panel */}
