@@ -5,11 +5,17 @@ let pool: Pool | undefined;
 
 export function getPool(): Pool {
   if (!pool) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) throw new Error("DATABASE_URL env var is not set");
+
+    // Neon and other cloud Postgres providers require SSL
+    const isLocal = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: 10,
+      connectionString,
+      max: 5, // keep low for serverless — Vercel functions are short-lived
       idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 10_000,
+      ssl: isLocal ? false : { rejectUnauthorized: false },
     });
   }
   return pool;
