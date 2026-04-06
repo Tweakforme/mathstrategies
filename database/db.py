@@ -258,6 +258,9 @@ def upsert_fighter(fighter: dict):
             sapm = EXCLUDED.sapm, str_def = EXCLUDED.str_def,
             td_avg = EXCLUDED.td_avg, td_acc = EXCLUDED.td_acc,
             td_def = EXCLUDED.td_def, sub_avg = EXCLUDED.sub_avg,
+            wins_by_ko = EXCLUDED.wins_by_ko,
+            wins_by_sub = EXCLUDED.wins_by_sub,
+            wins_by_dec = EXCLUDED.wins_by_dec,
             updated_at = NOW()
     """
     with get_conn() as conn:

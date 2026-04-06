@@ -98,22 +98,22 @@ export default function ModelExplanation({ f1Name, f2Name, f1, f2, f1Prob, f2Pro
       });
     }
 
-    // Striking accuracy
+    // Striking accuracy (stored as 0-100, e.g. 55.0 = 55%)
     const accDiff = diff(picked.str_acc, other.str_acc);
-    if (Math.abs(accDiff) > 0.03) {
+    if (Math.abs(accDiff) > 3) {
       factors.push({
         label: accDiff > 0 ? "Higher striking accuracy" : "Lower striking accuracy",
-        detail: `${Math.round(picked.str_acc * 100)}% vs ${Math.round(other.str_acc * 100)}%`,
+        detail: `${Math.round(picked.str_acc)}% vs ${Math.round(other.str_acc)}%`,
         positive: accDiff > 0,
       });
     }
 
-    // Defence
+    // Defence (stored as 0-100)
     const defDiff = diff(picked.str_def, other.str_def);
-    if (Math.abs(defDiff) > 0.04) {
+    if (Math.abs(defDiff) > 4) {
       factors.push({
         label: defDiff > 0 ? "Better striking defence" : "Weaker striking defence",
-        detail: `${Math.round(picked.str_def * 100)}% defence vs ${Math.round(other.str_def * 100)}%`,
+        detail: `${Math.round(picked.str_def)}% defence vs ${Math.round(other.str_def)}%`,
         positive: defDiff > 0,
       });
     }
