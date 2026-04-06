@@ -180,6 +180,60 @@ export async function getFightCard(eventId: string): Promise<FightCard[]> {
   );
 }
 
+export interface OddsRow {
+  id: number;
+  fight_id: string | null;
+  fighter1_name: string;
+  fighter2_name: string;
+  consensus_f1_decimal: number;
+  consensus_f2_decimal: number;
+  best_f1_decimal: number;
+  best_f2_decimal: number;
+  bookmakers: BookmakerLine[];
+  scraped_at: string;
+}
+
+export interface BookmakerLine {
+  bookmaker: string;
+  f1_decimal: number | null;
+  f2_decimal: number | null;
+  f1_american: number | null;
+  f2_american: number | null;
+  last_update: string;
+}
+
+/** Get latest odds for a fight matched by fighter names (handles API name mismatches). */
+export async function getOddsForFight(
+  fightId: string,
+  f1Name: string,
+  f2Name: string
+): Promise<OddsRow | null> {
+  // First try exact fight_id match
+  const byId = await queryOne<OddsRow>(
+    `SELECT id, fight_id, fighter1_name, fighter2_name,
+            consensus_f1_decimal::float, consensus_f2_decimal::float,
+            best_f1_decimal::float, best_f2_decimal::float,
+            bookmakers, scraped_at::text
+     FROM odds WHERE fight_id = $1 ORDER BY scraped_at DESC LIMIT 1`,
+    [fightId]
+  );
+  if (byId) return byId;
+
+  // Fallback: fuzzy name match on last name
+  const f1Last = f1Name.split(" ").at(-1)!.toLowerCase();
+  const f2Last = f2Name.split(" ").at(-1)!.toLowerCase();
+  return queryOne<OddsRow>(
+    `SELECT id, fight_id, fighter1_name, fighter2_name,
+            consensus_f1_decimal::float, consensus_f2_decimal::float,
+            best_f1_decimal::float, best_f2_decimal::float,
+            bookmakers, scraped_at::text
+     FROM odds
+     WHERE LOWER(fighter1_name) LIKE $1 OR LOWER(fighter2_name) LIKE $2
+     ORDER BY scraped_at DESC LIMIT 1`,
+    [`%${f1Last}%`, `%${f2Last}%`]
+  );
+}
+
 /** Single fighter profile. */
 export async function getFighter(id: string): Promise<Fighter | null> {
   return queryOne<Fighter>(
