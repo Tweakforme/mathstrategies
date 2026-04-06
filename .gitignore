@@ -1,0 +1,19 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.env
+*.pkl
+*.log
+
+# Node / Next.js
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.env.local
+dashboard/out/
+
+# OS
+.DS_Store
+Thumbs.db
