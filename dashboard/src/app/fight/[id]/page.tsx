@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { getFightDetail, getOddsForFight } from "@/lib/queries";
 import StatsComparison from "@/components/StatsComparison";
 import OddsPanel from "@/components/OddsPanel";
+import PickButtons from "@/components/PickButtons";
 import { Shield, Star, AlertTriangle, Zap } from "lucide-react";
 import clsx from "clsx";
 
@@ -218,6 +219,30 @@ export default async function FightPage({
           f2Prob={hasPred ? f2Prob : null}
         />
       )}
+
+      {/* Pick buttons */}
+      <PickButtons
+        fightId={params.id}
+        eventId={fight.event_id as string}
+        f1Id={fight.fighter1_id as string}
+        f1Name={fight.fighter1_name as string}
+        f1Decimal={odds?.best_f1_decimal ?? null}
+        f2Id={fight.fighter2_id as string}
+        f2Name={fight.fighter2_name as string}
+        f2Decimal={odds?.best_f2_decimal ?? null}
+        suggestedBet={
+          hasPred && fight.kelly_pct
+            ? Math.round(((fight.kelly_pct as number) / 100) * 1000)
+            : null
+        }
+        suggestedFighter={
+          hasPred
+            ? f1Favoured
+              ? (fight.fighter1_name as string)
+              : (fight.fighter2_name as string)
+            : null
+        }
+      />
 
       {/* Stake.com CTA */}
       <div className="card p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
