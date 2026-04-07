@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     recommended_odds_min NUMERIC(8,4),
     kelly_pct       NUMERIC(6,2),
     raw_features    JSONB,
+    is_backtest     BOOLEAN DEFAULT FALSE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -381,17 +382,21 @@ def insert_prediction(pred: dict):
             fight_id, event_id, fighter1_id, fighter2_id,
             model_version, f1_win_prob, f2_win_prob, confidence,
             is_value_bet, value_fighter, value_edge,
-            recommended_odds_min, kelly_pct, raw_features
+            recommended_odds_min, kelly_pct, raw_features, is_backtest
         ) VALUES (
             %(fight_id)s, %(event_id)s, %(fighter1_id)s, %(fighter2_id)s,
             %(model_version)s, %(f1_win_prob)s, %(f2_win_prob)s, %(confidence)s,
             %(is_value_bet)s, %(value_fighter)s, %(value_edge)s,
-            %(recommended_odds_min)s, %(kelly_pct)s, %(raw_features)s
+            %(recommended_odds_min)s, %(kelly_pct)s, %(raw_features)s, %(is_backtest)s
         )
     """
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, {**pred, "raw_features": _json_dumps(pred.get("raw_features", {}))})
+            cur.execute(sql, {
+                **pred,
+                "raw_features": _json_dumps(pred.get("raw_features", {})),
+                "is_backtest": pred.get("is_backtest", False),
+            })
 
 
 # ──────────────────────────────────────────────
@@ -404,6 +409,7 @@ def get_fights_for_event(event_id: str) -> list[dict]:
         SELECT
             fi.id AS fight_id, fi.event_id,
             fi.fighter1_id, fi.fighter2_id,
+            fi.winner_id, fi.method,
             fi.weight_class, fi.is_title_fight, fi.is_main_event,
             f1.name  AS f1_name,  f1.slpm AS f1_slpm, f1.str_acc AS f1_str_acc,
             f1.sapm  AS f1_sapm,  f1.str_def AS f1_str_def,

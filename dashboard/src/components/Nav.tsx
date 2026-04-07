@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { BarChart2, List, TrendingUp, LogOut } from "lucide-react";
+import { BarChart2, List, TrendingUp, LogOut, FlaskConical } from "lucide-react";
 import clsx from "clsx";
 
 const links = [
-  { href: "/",        label: "Fight Card",  icon: List },
-  { href: "/tracker", label: "My Tracker",  icon: TrendingUp },
+  { href: "/",         label: "Fight Card", icon: List },
+  { href: "/tracker",  label: "My Tracker", icon: TrendingUp },
+  { href: "/backtest", label: "Backtest",   icon: FlaskConical },
 ];
 
 export default function Nav({ user }: { user?: { name?: string | null } }) {

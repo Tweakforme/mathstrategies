@@ -29,6 +29,8 @@ import sys
 from dataclasses import asdict
 from datetime import datetime
 from typing import Optional
+import psycopg2
+import psycopg2.extras
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -56,6 +58,7 @@ from database.db import (
     insert_prediction,
     get_upcoming_predictions,
     get_fights_for_event,
+    get_conn,
     get_model_accuracy,
     upsert_tapology_data,
     get_all_fighter_names,
@@ -313,6 +316,103 @@ def run_predict(event_id: str):
 
 
 # ──────────────────────────────────────────────
+# Backtest (retroactive predictions on past events)
+# ──────────────────────────────────────────────
+
+def run_backtest(n_events: int = 5):
+    """
+    Run model predictions on the last N completed events and store as backtests.
+    Does NOT look at who won — uses current fighter stats to predict retroactively.
+    """
+    try:
+        from models.prediction_model import UFCPredictor
+    except ImportError:
+        log.error("Model not trained. Run train first.")
+        return
+
+    predictor = UFCPredictor()
+    predictor.load()
+
+    with get_conn() as conn:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT e.id, e.name, e.date
+            FROM events e
+            JOIN fights f ON f.event_id = e.id
+            WHERE e.date < CURRENT_DATE
+            GROUP BY e.id, e.name, e.date
+            HAVING COUNT(f.id) >= 3
+            ORDER BY e.date DESC
+            LIMIT %s
+        """, (n_events,))
+        events = [dict(r) for r in cur.fetchall()]
+
+    log.info("Running backtest on %d events", len(events))
+
+    total_fights = 0
+    correct = 0
+
+    for event in events:
+        eid = event["id"]
+        # Delete existing backtests for this event to avoid duplicates
+        with get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM predictions WHERE event_id = %s AND is_backtest = TRUE", (eid,))
+
+        fights = get_fights_for_event(eid)
+        if not fights:
+            continue
+
+        event_correct = 0
+        event_total = 0
+
+        for p in fights:
+            if not p.get("fighter1_id") or not p.get("fighter2_id"):
+                continue
+            try:
+                prob_f1, prob_f2 = predictor.predict(p)
+            except Exception as e:
+                log.warning("Prediction failed for %s vs %s: %s", p.get("f1_name"), p.get("f2_name"), e)
+                continue
+
+            predicted_winner_id = p["fighter1_id"] if prob_f1 > prob_f2 else p["fighter2_id"]
+            actual_winner_id = p.get("winner_id")
+            was_correct = actual_winner_id and predicted_winner_id == actual_winner_id
+
+            if actual_winner_id:
+                event_total += 1
+                if was_correct:
+                    event_correct += 1
+
+            pred_record = {
+                "fight_id":             p["fight_id"],
+                "event_id":             eid,
+                "fighter1_id":          p["fighter1_id"],
+                "fighter2_id":          p["fighter2_id"],
+                "model_version":        predictor.version,
+                "f1_win_prob":          prob_f1,
+                "f2_win_prob":          prob_f2,
+                "confidence":           max(prob_f1, prob_f2),
+                "is_value_bet":         False,
+                "value_fighter":        p["f1_name"] if prob_f1 > prob_f2 else p["f2_name"],
+                "value_edge":           0,
+                "recommended_odds_min": None,
+                "kelly_pct":            0,
+                "raw_features":         p,
+                "is_backtest":          True,
+            }
+            insert_prediction(pred_record)
+
+        acc = f"{event_correct}/{event_total}" if event_total else "n/a"
+        log.info("  %-45s %s correct", event["name"], acc)
+        total_fights += event_total
+        correct += event_correct
+
+    if total_fights:
+        log.info("Overall backtest accuracy: %d/%d = %.1f%%", correct, total_fights, correct / total_fights * 100)
+
+
+# ──────────────────────────────────────────────
 # Results recording (post-event)
 # ──────────────────────────────────────────────
 
@@ -410,6 +510,9 @@ def main():
     res = sub.add_parser("record-results")
     res.add_argument("--event-id", required=True)
 
+    bt = sub.add_parser("backtest", help="Run retroactive model predictions on last N events")
+    bt.add_argument("--n", type=int, default=5, help="Number of past events to backtest")
+
     args = parser.parse_args()
 
     if args.cmd == "init-db":
@@ -438,6 +541,9 @@ def main():
 
     elif args.cmd == "record-results":
         run_record_results(args.event_id)
+
+    elif args.cmd == "backtest":
+        run_backtest(n_events=args.n)
 
     elif args.cmd == "scrape-tapology":
         run_scrape_tapology(
