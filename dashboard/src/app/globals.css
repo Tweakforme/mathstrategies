@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @layer base {
   :root { color-scheme: dark; }
 
@@ -54,7 +52,7 @@
   .badge-gold    { @apply badge bg-gold/15 text-gold border border-gold/20; }
   .badge-electric{ @apply badge bg-electric/10 text-electric border border-electric/20; }
   .badge-success { @apply badge bg-success/10 text-success border border-success/20; }
-  .badge-muted   { @apply badge bg-white/5 text-muted border border-white/8; }
+  .badge-muted   { @apply badge bg-white/5 text-muted border border-white/10; }
   .badge-blue    { @apply badge bg-blue-500/10 text-blue-400 border border-blue-500/20; }
 
   /* Buttons */
@@ -83,12 +81,12 @@
   /* Stat pill */
   .stat-pill {
     @apply flex flex-col items-center justify-center bg-white/5 rounded-xl p-3
-           border border-white/5 hover:border-white/10 transition-colors;
+           border border-white/[0.05] hover:border-white/10 transition-colors;
   }
 
   /* Progress bar */
   .progress-bar {
-    @apply h-1.5 bg-white/8 rounded-full overflow-hidden;
+    @apply h-1.5 bg-white/10 rounded-full overflow-hidden;
   }
   .progress-fill {
     @apply h-full rounded-full transition-all duration-500;

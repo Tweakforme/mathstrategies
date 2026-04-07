@@ -99,14 +99,14 @@ export default function FightCardList({ fights, bankroll }: Props) {
                     <div className={clsx(
                       "w-12 h-12 rounded-xl flex flex-col items-center justify-center border text-center",
                       strong ? "bg-success/10 border-success/30 text-success" :
-                      skip ? "bg-white/3 border-border text-muted" :
+                      skip ? "bg-white/5 border-border text-muted" :
                       "bg-white/5 border-border text-white"
                     )}>
                       <span className="text-sm font-bold leading-none">{Math.round(conf * 100)}%</span>
                       <span className="text-[9px] text-muted mt-0.5">conf</span>
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-xl bg-white/3 border border-border flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-border flex items-center justify-center">
                       <Shield className="w-4 h-4 text-muted" />
                     </div>
                   )}
@@ -153,7 +153,7 @@ export default function FightCardList({ fights, bankroll }: Props) {
                           {Math.round(fight.f2_win_prob! * 100)}%
                         </span>
                       </div>
-                      <div className="flex h-1 rounded-full overflow-hidden bg-white/8">
+                      <div className="flex h-1 rounded-full overflow-hidden bg-white/10">
                         <div
                           className={clsx("h-full", f1Fav ? "bg-accent" : "bg-white/25")}
                           style={{ width: `${Math.round(fight.f1_win_prob! * 100)}%` }}
