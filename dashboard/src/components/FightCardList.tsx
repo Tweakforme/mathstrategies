@@ -44,6 +44,9 @@ export default function FightCardList({ fights, bankroll }: Props) {
           ? Math.round((fight.kelly_pct / 100) * bankroll)
           : null;
 
+        const sameCamp = !!(fight.f1_camp && fight.f2_camp &&
+          fight.f1_camp.toLowerCase() === fight.f2_camp.toLowerCase());
+
         const f1Initial = fight.fighter1_name.split(" ").map(w => w[0]).join("").slice(0,2);
         const f2Initial = fight.fighter2_name.split(" ").map(w => w[0]).join("").slice(0,2);
 
@@ -88,6 +91,11 @@ export default function FightCardList({ fights, bankroll }: Props) {
                   {hasProspect && (
                     <span className="badge-blue flex items-center gap-1">
                       <Zap className="w-2.5 h-2.5" /> Prospect
+                    </span>
+                  )}
+                  {sameCamp && (
+                    <span className="badge bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 flex items-center gap-1 text-xs">
+                      <AlertTriangle className="w-2.5 h-2.5" /> Same Camp
                     </span>
                   )}
                   {skip && <span className="badge-muted text-xs">Skip</span>}

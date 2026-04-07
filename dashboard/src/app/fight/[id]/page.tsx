@@ -7,6 +7,7 @@ import PickButtons from "@/components/PickButtons";
 import ModelExplanation from "@/components/ModelExplanation";
 import BettingAngles from "@/components/BettingAngles";
 import StyleMatchup from "@/components/StyleMatchup";
+import FighterBackground from "@/components/FighterBackground";
 import ContextNotes from "@/components/ContextNotes";
 import { Shield, Star, AlertTriangle, Zap } from "lucide-react";
 import clsx from "clsx";
@@ -210,6 +211,15 @@ export default async function FightPage({
           f2Name={fight.fighter2_name as string}
           f1={f1 as Record<string, number>}
           f2={f2 as Record<string, number>}
+        />
+      )}
+
+      {/* Fighter background (Tapology data) */}
+      {f1 && f2 && (
+        <FighterBackground
+          f1={{ name: fight.fighter1_name as string, camp: f1.camp, nationality: f1.nationality, pre_ufc_wins: f1.pre_ufc_wins, pre_ufc_losses: f1.pre_ufc_losses, pre_ufc_finish_rate: f1.pre_ufc_finish_rate, dwcs_appeared: f1.dwcs_appeared, dwcs_result: f1.dwcs_result, regional_competition_level: f1.regional_competition_level }}
+          f2={{ name: fight.fighter2_name as string, camp: f2.camp, nationality: f2.nationality, pre_ufc_wins: f2.pre_ufc_wins, pre_ufc_losses: f2.pre_ufc_losses, pre_ufc_finish_rate: f2.pre_ufc_finish_rate, dwcs_appeared: f2.dwcs_appeared, dwcs_result: f2.dwcs_result, regional_competition_level: f2.regional_competition_level }}
+          sameCamp={!!(f1.camp && f2.camp && f1.camp.toLowerCase() === f2.camp.toLowerCase())}
         />
       )}
 
