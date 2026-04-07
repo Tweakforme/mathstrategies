@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 def load_training_data(conn) -> pd.DataFrame:
     """
-    Load all completed fights with both fighters' stats.
+    Load all completed fights with both fighters' stats + ELO + recent form.
     Returns one row per fight with differential features.
     """
     sql = """
@@ -87,16 +87,32 @@ def load_training_data(conn) -> pd.DataFrame:
 
     from sqlalchemy import create_engine, text
     import os
+    from models.elo import compute_elo_ratings
+    from models.recent_form import compute_recent_form
+
     db_url = os.getenv("DATABASE_URL").replace("postgresql://", "postgresql+psycopg2://")
     engine = create_engine(db_url)
     with engine.connect() as c:
         df = pd.read_sql(text(sql), c)
+
+    # ── Attach ELO ratings ──────────────────────
+    log.info("Computing ELO ratings...")
+    elo = compute_elo_ratings(None)
+    df["f1_elo"] = df["fighter1_id"].map(elo).fillna(1500.0)
+    df["f2_elo"] = df["fighter2_id"].map(elo).fillna(1500.0)
+
+    # ── Attach recent form ──────────────────────
+    log.info("Computing recent form...")
+    form = compute_recent_form()
+    for col in ["win_rate_last3", "win_rate_last5", "current_streak", "recent_finish_rate", "days_inactive", "total_ufc_fights"]:
+        df[f"f1_{col}"] = df["fighter1_id"].map(form[col] if col in form.columns else form.get(col, {})).fillna(0.5 if "rate" in col else 0)
+        df[f"f2_{col}"] = df["fighter2_id"].map(form[col] if col in form.columns else form.get(col, {})).fillna(0.5 if "rate" in col else 0)
+
     df = balance_classes(df)
     log.info("Loaded %d fights for training (%d class-0, %d class-1)",
              len(df),
              (df["winner_id"] != df["fighter1_id"]).sum(),
              (df["winner_id"] == df["fighter1_id"]).sum())
-    return df
     return df
 
 def load_fight_for_prediction(conn, fight_id: str) -> Optional[pd.Series]:
@@ -252,6 +268,31 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     feat["is_title_fight"]  = df["is_title_fight"].astype(int) \
                               if "is_title_fight" in df.columns else 0
 
+    # ── ELO ratings ──────────────────────────────
+    if "f1_elo" in df.columns and "f2_elo" in df.columns:
+        feat["elo_diff"]        = df["f1_elo"] - df["f2_elo"]
+        feat["elo_f1"]          = df["f1_elo"]
+        feat["elo_f2"]          = df["f2_elo"]
+        # ELO win probability
+        feat["elo_win_prob_f1"] = 1.0 / (1.0 + 10 ** ((df["f2_elo"] - df["f1_elo"]) / 400.0))
+    else:
+        feat["elo_diff"]        = 0.0
+        feat["elo_f1"]          = 1500.0
+        feat["elo_f2"]          = 1500.0
+        feat["elo_win_prob_f1"] = 0.5
+
+    # ── Recent form ───────────────────────────────
+    for side in ["f1", "f2"]:
+        for col in ["win_rate_last3", "win_rate_last5", "current_streak", "recent_finish_rate", "days_inactive", "total_ufc_fights"]:
+            key = f"{side}_{col}"
+            feat[key] = df[key] if key in df.columns else (0.5 if "rate" in col else 0)
+
+    feat["form_diff_l3"]       = feat["f1_win_rate_last3"]   - feat["f2_win_rate_last3"]
+    feat["form_diff_l5"]       = feat["f1_win_rate_last5"]   - feat["f2_win_rate_last5"]
+    feat["streak_diff"]        = feat["f1_current_streak"]   - feat["f2_current_streak"]
+    feat["inactivity_diff"]    = feat["f1_days_inactive"]    - feat["f2_days_inactive"]
+    feat["experience_diff"]    = feat["f1_total_ufc_fights"] - feat["f2_total_ufc_fights"]
+
     # ── Fill NaN ────────────────────────────────
     feat = feat.fillna(0.0)
 
@@ -291,15 +332,33 @@ def _prime_score(age: float) -> float:
 def get_feature_columns() -> list[str]:
     """Return the ordered list of feature columns used by the model."""
     return [
+        # Striking
         "str_diff", "str_acc_diff", "str_def_diff", "sapm_diff",
         "str_eff_diff", "str_vs_def",
+        # Grappling
         "td_diff", "td_acc_diff", "td_def_diff", "sub_diff", "td_vs_def",
+        # Record
         "total_fights_diff", "win_pct_diff",
+        # Finish rates
         "fin_rate_diff", "ko_rate_diff", "sub_rate_diff",
         "ko_rate_f1", "ko_rate_f2", "sub_rate_f1", "sub_rate_f2",
         "fin_rate_f1", "fin_rate_f2",
+        # Physical
         "height_diff", "reach_diff",
+        # Age
         "age_diff", "prime_diff",
+        # Stance
         "both_orthodox", "orthodox_vs_sw", "sw_vs_orthodox",
+        # Fight context
         "is_title_fight",
+        # ELO (quality of opposition)
+        "elo_diff", "elo_f1", "elo_f2", "elo_win_prob_f1",
+        # Recent form
+        "f1_win_rate_last3", "f2_win_rate_last3",
+        "f1_win_rate_last5", "f2_win_rate_last5",
+        "form_diff_l3", "form_diff_l5",
+        "f1_current_streak", "f2_current_streak", "streak_diff",
+        "f1_recent_finish_rate", "f2_recent_finish_rate",
+        "f1_days_inactive", "f2_days_inactive", "inactivity_diff",
+        "f1_total_ufc_fights", "f2_total_ufc_fights", "experience_diff",
     ]

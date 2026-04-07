@@ -84,17 +84,28 @@ class UFCPredictor:
 
         # ── XGBoost parameters ──────────────────
         # Tuned for small-medium UFC datasets
+        n_samples = len(X)
+        # Scale model complexity with dataset size
+        if n_samples >= 3000:
+            n_est, depth, lr, min_child = 600, 5, 0.03, 5
+        elif n_samples >= 1000:
+            n_est, depth, lr, min_child = 400, 4, 0.04, 4
+        else:
+            n_est, depth, lr, min_child = 300, 3, 0.05, 3
+
+        log.info("Model params: n_estimators=%d, depth=%d, lr=%.3f (n=%d)", n_est, depth, lr, n_samples)
+
         base_model = xgb.XGBClassifier(
-            n_estimators       = 300,
-            max_depth          = 4,         # shallow — prevents overfitting on small data
-            learning_rate      = 0.05,
+            n_estimators       = n_est,
+            max_depth          = depth,
+            learning_rate      = lr,
             subsample          = 0.8,
-            colsample_bytree   = 0.8,
-            min_child_weight   = 3,
+            colsample_bytree   = 0.7,
+            min_child_weight   = min_child,
             gamma              = 0.1,
-            reg_alpha          = 0.1,       # L1 regularisation
-            reg_lambda         = 1.0,       # L2 regularisation
-            scale_pos_weight   = 1,         # balanced classes (50/50 by construction)
+            reg_alpha          = 0.1,
+            reg_lambda         = 1.0,
+            scale_pos_weight   = 1,
             use_label_encoder  = False,
             eval_metric        = "logloss",
             random_state       = 42,
@@ -115,6 +126,18 @@ class UFCPredictor:
         self.model = CalibratedClassifierCV(base_model, cv=3, method="isotonic")
         self.model.fit(X_scaled, y)
         self.is_trained = True
+
+        # Cache ELO + form for use during prediction
+        try:
+            from models.elo import compute_elo_ratings
+            from models.recent_form import compute_recent_form
+            self._elo = compute_elo_ratings(None)
+            self._form = compute_recent_form()
+            log.info("ELO and recent form cached for prediction")
+        except Exception as e:
+            log.warning("Could not cache ELO/form: %s", e)
+            self._elo = {}
+            self._form = None
 
         # ── In-sample evaluation ────────────────
         y_pred  = self.model.predict(X_scaled)
@@ -169,7 +192,7 @@ class UFCPredictor:
         Predict win probabilities for a single fight.
 
         Args:
-            fight_data: dict with fighter stats (from get_upcoming_predictions)
+            fight_data: dict with fighter stats (from get_fights_for_event)
 
         Returns:
             (f1_win_prob, f2_win_prob) as floats 0-1
@@ -178,7 +201,27 @@ class UFCPredictor:
             raise RuntimeError("Model not trained. Call train() or load() first.")
 
         row = self._fight_dict_to_row(fight_data)
-        feat = engineer_features(pd.DataFrame([row]))
+        df_row = pd.DataFrame([row])
+
+        # Attach ELO if available
+        if hasattr(self, "_elo") and self._elo:
+            df_row["f1_elo"] = self._elo.get(row.get("fighter1_id"), 1500.0)
+            df_row["f2_elo"] = self._elo.get(row.get("fighter2_id"), 1500.0)
+
+        # Attach recent form if available
+        if hasattr(self, "_form") and self._form is not None:
+            form = self._form
+            for side, fid_key in [("f1", "fighter1_id"), ("f2", "fighter2_id")]:
+                fid = row.get(fid_key)
+                for col in ["win_rate_last3", "win_rate_last5", "current_streak", "recent_finish_rate", "days_inactive", "total_ufc_fights"]:
+                    val = form.loc[fid, col] if fid in form.index else (0.5 if "rate" in col else 0)
+                    df_row[f"{side}_{col}"] = val
+
+        feat = engineer_features(df_row)
+        # Fill any missing feature columns with 0
+        for col in self.features:
+            if col not in feat.columns:
+                feat[col] = 0.0
         X = feat[self.features].values
         X_scaled = self.scaler.transform(X)
 
@@ -246,29 +289,33 @@ class UFCPredictor:
     # ── Persistence ─────────────────────────────
 
     def save(self, path: str = MODEL_PATH):
-        """Save model + scaler + metadata to disk."""
+        """Save model + scaler + ELO + form + metadata to disk."""
         os.makedirs(os.path.dirname(path), exist_ok=True)
         payload = {
-            "model":    self.model,
-            "scaler":   self.scaler,
-            "features": self.features,
-            "version":  self.version,
+            "model":      self.model,
+            "scaler":     self.scaler,
+            "features":   self.features,
+            "version":    self.version,
             "trained_at": datetime.utcnow().isoformat(),
+            "elo":        getattr(self, "_elo", {}),
+            "form":       getattr(self, "_form", None),
         }
         joblib.dump(payload, path)
         log.info("Model saved to %s", path)
 
     def load(self, path: str = MODEL_PATH):
-        """Load model + scaler from disk."""
+        """Load model + scaler + ELO + form from disk."""
         if not os.path.exists(path):
             raise FileNotFoundError(
                 f"No model found at {path}. Run: python pipeline.py train"
             )
-        payload       = joblib.load(path)
-        self.model    = payload["model"]
-        self.scaler   = payload["scaler"]
-        self.features = payload["features"]
-        self.version  = payload.get("version", VERSION)
+        payload         = joblib.load(path)
+        self.model      = payload["model"]
+        self.scaler     = payload["scaler"]
+        self.features   = payload["features"]
+        self.version    = payload.get("version", VERSION)
+        self._elo       = payload.get("elo", {})
+        self._form      = payload.get("form", None)
         self.is_trained = True
         log.info("Model loaded: %s (trained %s)", self.version, payload.get("trained_at", "?"))
 
