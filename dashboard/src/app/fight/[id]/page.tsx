@@ -6,6 +6,8 @@ import OddsPanel from "@/components/OddsPanel";
 import PickButtons from "@/components/PickButtons";
 import ModelExplanation from "@/components/ModelExplanation";
 import BettingAngles from "@/components/BettingAngles";
+import StyleMatchup from "@/components/StyleMatchup";
+import ContextNotes from "@/components/ContextNotes";
 import { Shield, Star, AlertTriangle, Zap } from "lucide-react";
 import clsx from "clsx";
 
@@ -211,6 +213,18 @@ export default async function FightPage({
         />
       )}
 
+      {/* Style matchup analysis */}
+      {f1 && f2 && (
+        <StyleMatchup
+          f1Name={fight.fighter1_name as string}
+          f2Name={fight.fighter2_name as string}
+          f1={f1 as any}
+          f2={f2 as any}
+          f1Prob={hasPred ? f1Prob : 0.5}
+          f2Prob={hasPred ? f2Prob : 0.5}
+        />
+      )}
+
       {/* Model explanation + betting angles */}
       {hasPred && f1 && f2 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -268,6 +282,13 @@ export default async function FightPage({
               : (fight.fighter2_name as string)
             : null
         }
+      />
+
+      {/* Context notes */}
+      <ContextNotes
+        fightId={params.id}
+        f1Name={fight.fighter1_name as string}
+        f2Name={fight.fighter2_name as string}
       />
 
       {/* Stake.com CTA */}
