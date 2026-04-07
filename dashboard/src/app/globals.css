@@ -2,56 +2,117 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @layer base {
-  :root {
-    color-scheme: dark;
-  }
+  :root { color-scheme: dark; }
 
   body {
     @apply bg-bg text-white antialiased;
-    font-family: Inter, system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(230,57,70,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(6,182,212,0.04) 0%, transparent 50%);
+    background-attachment: fixed;
   }
 
-  * {
-    @apply border-border;
-  }
+  ::selection { @apply bg-accent/30 text-white; }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-card;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-subtle rounded;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted;
-  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-bg; }
+  ::-webkit-scrollbar-thumb { @apply bg-border-2 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-subtle; }
 }
 
 @layer components {
+  /* Cards */
   .card {
-    @apply bg-card rounded-lg border border-border;
+    @apply bg-card rounded-xl border border-border shadow-card;
+    background: linear-gradient(135deg, #0d1117 0%, #111827 100%);
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-border-2 hover:shadow-card-hover hover:-translate-y-px;
+  }
+  .card-accent {
+    @apply card border-accent/30;
+    box-shadow: 0 0 0 1px rgba(230,57,70,0.15), 0 4px 16px rgba(230,57,70,0.1);
+  }
+  .card-gold {
+    @apply card border-gold/30;
+    box-shadow: 0 0 0 1px rgba(245,158,11,0.15), 0 4px 16px rgba(245,158,11,0.08);
+  }
+  .card-electric {
+    @apply card border-electric/20;
+    box-shadow: 0 0 0 1px rgba(6,182,212,0.1), 0 4px 16px rgba(6,182,212,0.06);
   }
 
+  /* Badges */
   .badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold;
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold tracking-wide;
   }
+  .badge-accent  { @apply badge bg-accent/15 text-accent border border-accent/20; }
+  .badge-gold    { @apply badge bg-gold/15 text-gold border border-gold/20; }
+  .badge-electric{ @apply badge bg-electric/10 text-electric border border-electric/20; }
+  .badge-success { @apply badge bg-success/10 text-success border border-success/20; }
+  .badge-muted   { @apply badge bg-white/5 text-muted border border-white/8; }
+  .badge-blue    { @apply badge bg-blue-500/10 text-blue-400 border border-blue-500/20; }
 
+  /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold
-           transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50
-           disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-semibold
+           transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1
+           focus:ring-offset-bg disabled:opacity-40 disabled:pointer-events-none cursor-pointer;
   }
-
   .btn-primary {
-    @apply btn bg-accent hover:bg-accent-hover text-white px-4 py-2;
+    @apply btn bg-gradient-accent text-white px-4 py-2 hover:opacity-90 shadow-accent-glow
+           focus:ring-accent/50 active:scale-[0.98];
+  }
+  .btn-gold {
+    @apply btn bg-gradient-gold text-bg px-4 py-2 hover:opacity-90 shadow-gold-glow
+           focus:ring-gold/50 active:scale-[0.98] font-bold;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent hover:bg-white/5 text-white px-4 py-2 border border-border
+           hover:border-border-2 focus:ring-white/20;
+  }
+  .btn-sm { @apply text-sm px-3 py-1.5; }
+
+  /* Divider */
+  .divider { @apply border-t border-border my-4; }
+
+  /* Stat pill */
+  .stat-pill {
+    @apply flex flex-col items-center justify-center bg-white/5 rounded-xl p-3
+           border border-white/5 hover:border-white/10 transition-colors;
   }
 
-  .btn-ghost {
-    @apply btn bg-transparent hover:bg-white/5 text-white px-4 py-2;
+  /* Progress bar */
+  .progress-bar {
+    @apply h-1.5 bg-white/8 rounded-full overflow-hidden;
+  }
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-500;
+  }
+
+  /* Section header */
+  .section-header {
+    @apply flex items-center gap-2 mb-4;
+  }
+  .section-title {
+    @apply font-semibold text-white tracking-tight;
+  }
+  .section-icon {
+    @apply w-4 h-4 shrink-0;
+  }
+
+  /* Fighter initial avatar */
+  .fighter-avatar {
+    @apply w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+           border border-border-2 bg-bg-2 text-muted shrink-0;
+  }
+
+  /* Glow dot */
+  .live-dot {
+    @apply w-2 h-2 rounded-full bg-success animate-pulse-slow;
   }
 }

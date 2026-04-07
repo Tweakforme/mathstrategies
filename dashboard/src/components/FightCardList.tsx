@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FightCard } from "@/lib/queries";
-import { TrendingUp, AlertTriangle, ChevronRight, Shield, Zap } from "lucide-react";
+import { TrendingUp, AlertTriangle, ChevronRight, Shield, Zap, Star, Target } from "lucide-react";
 import clsx from "clsx";
 
 interface Props {
@@ -11,215 +11,216 @@ interface Props {
 }
 
 export default function FightCardList({ fights, bankroll }: Props) {
-  // Sort: value bets first, then main event, then confidence desc
   const sorted = [...fights].sort((a, b) => {
-    const aValue = a.is_value_bet && (a.value_edge ?? 0) > 0.05 ? 1 : 0;
-    const bValue = b.is_value_bet && (b.value_edge ?? 0) > 0.05 ? 1 : 0;
-    if (bValue !== aValue) return bValue - aValue;
+    const aVal = a.is_value_bet && (a.value_edge ?? 0) > 0.05 ? 1 : 0;
+    const bVal = b.is_value_bet && (b.value_edge ?? 0) > 0.05 ? 1 : 0;
+    if (bVal !== aVal) return bVal - aVal;
     if (b.is_main_event !== a.is_main_event) return Number(b.is_main_event) - Number(a.is_main_event);
     return (b.confidence ?? 0) - (a.confidence ?? 0);
   });
 
-  // Max 4 value bets highlighted
   let valueBetCount = 0;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {sorted.map((fight) => {
-        const isValue =
-          fight.is_value_bet === true &&
-          (fight.value_edge ?? 0) > 0.05 &&
-          valueBetCount < 4;
+        const isValue = fight.is_value_bet === true && (fight.value_edge ?? 0) > 0.05 && valueBetCount < 4;
         if (isValue) valueBetCount++;
 
         const hasPred = fight.f1_win_prob !== null;
         const conf = fight.confidence ?? 0;
         const skip = hasPred && conf < 0.55;
+        const strong = hasPred && conf >= 0.70;
 
-        const favoured = hasPred
-          ? fight.f1_win_prob! > fight.f2_win_prob!
-            ? { name: fight.fighter1_name, prob: fight.f1_win_prob! }
-            : { name: fight.fighter2_name, prob: fight.f2_win_prob! }
-          : null;
-
-        const betSize =
-          isValue && fight.kelly_pct
-            ? Math.round((fight.kelly_pct / 100) * bankroll)
-            : null;
+        const f1Fav = hasPred ? fight.f1_win_prob! >= fight.f2_win_prob! : null;
+        const favName = f1Fav == null ? null : f1Fav ? fight.fighter1_name : fight.fighter2_name;
+        const favProb = f1Fav == null ? null : f1Fav ? fight.f1_win_prob! : fight.f2_win_prob!;
 
         const f1Ufc = (fight.f1_wins ?? 0) + (fight.f1_losses ?? 0);
         const f2Ufc = (fight.f2_wins ?? 0) + (fight.f2_losses ?? 0);
-        const isProspect = f1Ufc < 3 || f2Ufc < 3;
+        const hasProspect = f1Ufc < 3 || f2Ufc < 3;
+
+        const betSize = isValue && fight.kelly_pct
+          ? Math.round((fight.kelly_pct / 100) * bankroll)
+          : null;
+
+        const f1Initial = fight.fighter1_name.split(" ").map(w => w[0]).join("").slice(0,2);
+        const f2Initial = fight.fighter2_name.split(" ").map(w => w[0]).join("").slice(0,2);
 
         return (
           <Link
             href={`/fight/${fight.id}`}
             key={fight.id}
             className={clsx(
-              "card block p-4 hover:border-white/20 transition-all group",
-              isValue && "border-accent/40 bg-accent/5"
+              "block rounded-xl border transition-all duration-200 hover:-translate-y-px group",
+              "bg-gradient-to-br",
+              isValue
+                ? "from-gold/5 to-card border-gold/30 hover:border-gold/50 shadow-gold-glow"
+                : fight.is_main_event
+                ? "from-accent/5 to-card border-accent/25 hover:border-accent/40"
+                : "from-card to-card-2 border-border hover:border-border-2 hover:shadow-card-hover"
             )}
           >
-            <div className="flex items-start justify-between gap-4">
-              {/* Left: fighters */}
-              <div className="flex-1 min-w-0">
-                {/* Badges row */}
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            <div className="p-4">
+              {/* Top row: badges + confidence */}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {fight.is_main_event && (
-                    <span className="badge bg-accent/10 text-accent">Main Event</span>
+                    <span className="badge-accent text-xs">Main Event</span>
                   )}
                   {fight.is_title_fight && (
-                    <span className="badge bg-yellow-500/10 text-yellow-400">Title Fight</span>
-                  )}
-                  <span className="badge bg-white/5 text-muted">{fight.weight_class}</span>
-                  {isProspect && (
-                    <span className="badge bg-blue-500/10 text-blue-400 flex items-center gap-1">
-                      <Zap className="w-3 h-3" /> Prospect
+                    <span className="badge-gold flex items-center gap-1">
+                      <Star className="w-2.5 h-2.5" /> Title
                     </span>
                   )}
+                  <span className="badge-muted text-xs">{fight.weight_class}</span>
                   {isValue && (
-                    <span className="badge bg-green-500/10 text-green-400 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" />
-                      Value +{((fight.value_edge ?? 0) * 100).toFixed(1)}%
+                    <span className="badge-gold flex items-center gap-1">
+                      <TrendingUp className="w-2.5 h-2.5" />
+                      +{((fight.value_edge ?? 0) * 100).toFixed(0)}% edge
                     </span>
                   )}
-                  {skip && (
-                    <span className="badge bg-white/5 text-muted">SKIP</span>
+                  {strong && !isValue && (
+                    <span className="badge-electric flex items-center gap-1">
+                      <Target className="w-2.5 h-2.5" /> Strong pick
+                    </span>
                   )}
+                  {hasProspect && (
+                    <span className="badge-blue flex items-center gap-1">
+                      <Zap className="w-2.5 h-2.5" /> Prospect
+                    </span>
+                  )}
+                  {skip && <span className="badge-muted text-xs">Skip</span>}
                 </div>
 
-                {/* Fighter names */}
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <FighterName
-                      name={fight.fighter1_name}
-                      record={`${fight.f1_wins}-${fight.f1_losses}`}
-                      prob={fight.f1_win_prob}
-                      favoured={favoured?.name === fight.fighter1_name}
-                    />
-                  </div>
-                  <span className="text-muted text-sm font-bold shrink-0">vs</span>
-                  <div className="flex-1 text-right">
-                    <FighterName
-                      name={fight.fighter2_name}
-                      record={`${fight.f2_wins}-${fight.f2_losses}`}
-                      prob={fight.f2_win_prob}
-                      favoured={favoured?.name === fight.fighter2_name}
-                      align="right"
-                    />
-                  </div>
-                </div>
-
-                {/* Confidence bar */}
-                {hasPred && favoured && (
-                  <div className="mt-3">
-                    <ConfidenceBar
-                      f1Name={fight.fighter1_name}
-                      f2Name={fight.fighter2_name}
-                      f1Prob={fight.f1_win_prob!}
-                      f2Prob={fight.f2_win_prob!}
-                    />
-                  </div>
-                )}
-
-                {/* Bet size + odds */}
-                <div className="flex items-center gap-3 mt-2 text-xs text-muted">
-                  {betSize !== null && (
-                    <span className="text-green-400 font-semibold">
-                      Bet ${betSize} on {fight.value_fighter}
-                    </span>
-                  )}
-                  {fight.best_f1_decimal && (
-                    <span>
-                      {fight.fighter1_name.split(" ").at(-1)} {fight.best_f1_decimal.toFixed(2)}
-                      {" · "}
-                      {fight.fighter2_name.split(" ").at(-1)} {fight.best_f2_decimal?.toFixed(2)}
-                    </span>
-                  )}
-                  {isProspect && (
-                    <span className="flex items-center gap-0.5 text-yellow-500">
-                      <AlertTriangle className="w-3 h-3" /> Prospect alert — check pre-UFC record
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: confidence % */}
-              <div className="shrink-0 flex flex-col items-center justify-center w-14 text-center">
-                {hasPred ? (
-                  <>
-                    <span className={clsx(
-                      "text-xl font-bold",
-                      skip ? "text-muted" : conf >= 0.65 ? "text-green-400" : "text-white"
+                {/* Confidence bubble */}
+                <div className="shrink-0 flex items-center gap-1.5">
+                  {hasPred && favProb !== null ? (
+                    <div className={clsx(
+                      "w-12 h-12 rounded-xl flex flex-col items-center justify-center border text-center",
+                      strong ? "bg-success/10 border-success/30 text-success" :
+                      skip ? "bg-white/3 border-border text-muted" :
+                      "bg-white/5 border-border text-white"
                     )}>
-                      {Math.round(conf * 100)}%
-                    </span>
-                    <span className="text-xs text-muted">conf</span>
-                  </>
-                ) : (
-                  <Shield className="w-6 h-6 text-muted" />
-                )}
-                <ChevronRight className="w-4 h-4 text-muted mt-1 group-hover:text-white transition-colors" />
+                      <span className="text-sm font-bold leading-none">{Math.round(conf * 100)}%</span>
+                      <span className="text-[9px] text-muted mt-0.5">conf</span>
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-white/3 border border-border flex items-center justify-center">
+                      <Shield className="w-4 h-4 text-muted" />
+                    </div>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-muted group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                </div>
               </div>
+
+              {/* Fighter row */}
+              <div className="flex items-center gap-3">
+                {/* F1 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className={clsx(
+                      "fighter-avatar text-xs",
+                      f1Fav ? "border-white/20 text-white" : ""
+                    )}>
+                      {f1Initial}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={clsx(
+                        "font-semibold text-sm truncate leading-tight",
+                        f1Fav ? "text-white" : "text-muted"
+                      )}>
+                        {fight.fighter1_name}
+                      </p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {fight.f1_wins ?? 0}–{fight.f1_losses ?? 0}
+                        {fight.f1_nationality && ` · ${fight.f1_nationality}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* VS + prob bar */}
+                <div className="shrink-0 text-center w-20">
+                  {hasPred && fight.f1_win_prob !== null ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs font-bold">
+                        <span className={clsx(f1Fav ? "text-white" : "text-muted")}>
+                          {Math.round(fight.f1_win_prob! * 100)}%
+                        </span>
+                        <span className="text-muted text-[10px] mx-0.5">·</span>
+                        <span className={clsx(!f1Fav ? "text-white" : "text-muted")}>
+                          {Math.round(fight.f2_win_prob! * 100)}%
+                        </span>
+                      </div>
+                      <div className="flex h-1 rounded-full overflow-hidden bg-white/8">
+                        <div
+                          className={clsx("h-full", f1Fav ? "bg-accent" : "bg-white/25")}
+                          style={{ width: `${Math.round(fight.f1_win_prob! * 100)}%` }}
+                        />
+                        <div
+                          className={clsx("h-full", !f1Fav ? "bg-accent" : "bg-white/25")}
+                          style={{ width: `${Math.round(fight.f2_win_prob! * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted">vs</span>
+                  )}
+                </div>
+
+                {/* F2 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-row-reverse">
+                    <div className={clsx(
+                      "fighter-avatar text-xs",
+                      !f1Fav && f1Fav !== null ? "border-white/20 text-white" : ""
+                    )}>
+                      {f2Initial}
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <p className={clsx(
+                        "font-semibold text-sm truncate leading-tight",
+                        !f1Fav && f1Fav !== null ? "text-white" : "text-muted"
+                      )}>
+                        {fight.fighter2_name}
+                      </p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {fight.f2_wins ?? 0}–{fight.f2_losses ?? 0}
+                        {fight.f2_nationality && ` · ${fight.f2_nationality}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom: bet suggestion + odds */}
+              {(betSize || fight.best_f1_decimal || hasProspect) && (
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/50 text-xs text-muted">
+                  {betSize !== null && (
+                    <span className="text-gold font-semibold flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      Bet ${betSize} · {fight.value_fighter?.split(" ").at(-1)}
+                    </span>
+                  )}
+                  {fight.best_f1_decimal && !betSize && (
+                    <span>
+                      {fight.fighter1_name.split(" ").at(-1)} <span className="text-white">{fight.best_f1_decimal.toFixed(2)}</span>
+                      {" · "}
+                      {fight.fighter2_name.split(" ").at(-1)} <span className="text-white">{fight.best_f2_decimal?.toFixed(2)}</span>
+                    </span>
+                  )}
+                  {hasProspect && (
+                    <span className="flex items-center gap-1 text-yellow-500 ml-auto">
+                      <AlertTriangle className="w-3 h-3" /> Prospect
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </Link>
         );
       })}
-    </div>
-  );
-}
-
-function FighterName({
-  name, record, prob, favoured, align = "left",
-}: {
-  name: string;
-  record: string;
-  prob: number | null;
-  favoured: boolean;
-  align?: "left" | "right";
-}) {
-  return (
-    <div className={clsx(align === "right" && "flex flex-col items-end")}>
-      <p className={clsx(
-        "font-semibold text-sm leading-tight",
-        favoured ? "text-white" : "text-muted"
-      )}>
-        {name}
-      </p>
-      <p className="text-xs text-muted mt-0.5">{record}</p>
-    </div>
-  );
-}
-
-function ConfidenceBar({
-  f1Name, f2Name, f1Prob, f2Prob,
-}: {
-  f1Name: string; f2Name: string; f1Prob: number; f2Prob: number;
-}) {
-  const f1Pct = Math.round(f1Prob * 100);
-  const f2Pct = Math.round(f2Prob * 100);
-  const f1Favoured = f1Prob >= f2Prob;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex h-1.5 rounded-full overflow-hidden bg-white/5">
-        <div
-          className={clsx("h-full rounded-l-full transition-all",
-            f1Favoured ? "bg-accent" : "bg-white/20"
-          )}
-          style={{ width: `${f1Pct}%` }}
-        />
-        <div
-          className={clsx("h-full rounded-r-full transition-all",
-            !f1Favoured ? "bg-accent" : "bg-white/20"
-          )}
-          style={{ width: `${f2Pct}%` }}
-        />
-      </div>
-      <div className="flex justify-between text-xs text-muted">
-        <span className={f1Favoured ? "text-white" : ""}>{f1Pct}%</span>
-        <span className={!f1Favoured ? "text-white" : ""}>{f2Pct}%</span>
-      </div>
     </div>
   );
 }
