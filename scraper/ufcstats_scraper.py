@@ -345,6 +345,10 @@ def _parse_fight_row(row, event_id: str) -> Optional[Fight]:
         fight.fighter1_name = fighter_ps[0].get_text(strip=True)
         fight.fighter2_name = fighter_ps[1].get_text(strip=True)
 
+    # Upcoming fights have no fight-detail URL yet — generate a deterministic synthetic ID
+    if not fight.ufcstats_id and fight.fighter1_id and fight.fighter2_id:
+        fight.ufcstats_id = f"upcoming_{event_id}_{fight.fighter1_id}_{fight.fighter2_id}"
+
     # ── Winner — col0 result is always from fighter1's perspective ──
     if result_text == "win":
         fight.winner_id   = fight.fighter1_id

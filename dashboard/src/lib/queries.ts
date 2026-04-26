@@ -110,6 +110,18 @@ export async function getNextEvent(): Promise<Event | null> {
   );
 }
 
+/** All upcoming events with at least one fight (date >= today). */
+export async function getUpcomingEvents(): Promise<Event[]> {
+  return query<Event>(
+    `SELECT e.id, e.name, e.date::text, e.location
+     FROM events e
+     WHERE e.date >= CURRENT_DATE
+       AND EXISTS (SELECT 1 FROM fights f WHERE f.event_id = e.id AND f.id != '')
+     ORDER BY e.date ASC
+     LIMIT 10`
+  );
+}
+
 /** All fights for an event, joined with fighter stats + latest prediction + latest odds. */
 export async function getFightCard(eventId: string): Promise<FightCard[]> {
   return query<FightCard>(
