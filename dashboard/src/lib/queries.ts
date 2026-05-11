@@ -110,12 +110,12 @@ export async function getNextEvent(): Promise<Event | null> {
   );
 }
 
-/** All upcoming events with at least one fight (date >= today). */
+/** Upcoming events + events from the last 3 days (so recent cards stay visible). */
 export async function getUpcomingEvents(): Promise<Event[]> {
   return query<Event>(
     `SELECT e.id, e.name, e.date::text, e.location
      FROM events e
-     WHERE e.date >= CURRENT_DATE
+     WHERE e.date >= CURRENT_DATE - INTERVAL '3 days'
        AND EXISTS (SELECT 1 FROM fights f WHERE f.event_id = e.id AND f.id != '')
      ORDER BY e.date ASC
      LIMIT 10`
