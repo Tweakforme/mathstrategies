@@ -5,6 +5,7 @@ import FightCardList from "@/components/FightCardList";
 import { Calendar, MapPin, TrendingUp, Target, Zap } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   const session = await auth();
